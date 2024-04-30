@@ -1,4 +1,4 @@
-DESTDIR=../../libxenomai
+DESTDIR=libxenomai
 XENOCONFIG=$(DESTDIR)/usr/xenomai/bin/xeno-config
 CC=$(shell DESTDIR=$(DESTDIR) $(XENOCONFIG) --cc)
 
