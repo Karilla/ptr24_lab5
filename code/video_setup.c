@@ -5,6 +5,13 @@
 #include "video_setup.h"
 #include "video_utils.h"
 
+void convolution_task(void *cookie)
+{
+}
+
+void greyscale_task(void *cookie)
+{
+}
 void video_task(void *cookie)
 {
     Priv_video_args_t *priv = (Priv_video_args_t *)cookie;

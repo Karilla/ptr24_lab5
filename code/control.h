@@ -16,8 +16,15 @@
 
 #include <stdbool.h>
 
+#define AUDIO_RUNNING 1
+#define VIDEO_RUNNING 2
+#define ALL_RUNNING 3
+
 typedef struct Ctl_data
 {
+    RT_EVENT *control_event;
+    bool audio_running;
+    bool video_running;
     bool running;
 } Ctl_data_t;
 

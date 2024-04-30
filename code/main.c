@@ -31,6 +31,11 @@
 // IOCTL defines
 #define KEY0 0x0
 
+#define SWITCH_0 0x01
+#define SWITCH_1 (0x01 << 1)
+#define SWITCH_8 (0x01 << 8)
+#define SWITCH_9 (0x01 << 9)
+
 // Control task defines
 #define CTL_TASK_PERIOD 100000000 // 10HZ
 #define CTL_TASK_PRIORITY 50
@@ -44,6 +49,43 @@ void ioctl_ctl_task(void *cookie)
     while (priv->running)
     {
         unsigned keys = read_key(MMAP);
+        unsigned switch_value = read_switch(MMAP);
+
+        if (switch_value & SWITCH_0)
+        {
+            // activation audio
+        }
+        else
+        {
+            // descativation audio
+        }
+
+        if (switch_value & SWITCH_1)
+        {
+            // activation video
+        }
+        else
+        {
+            // descativation video
+        }
+
+        if (switch_value & SWITCH_8)
+        {
+            // activation grey
+        }
+        else
+        {
+            // descativation grey
+        }
+
+        if (switch_value & SWITCH_9)
+        {
+            // activation convolution
+        }
+        else
+        {
+            // descativation convolution
+        }
         // Check if the key0 is pressed
         if (keys | KEY0)
         {
@@ -70,9 +112,18 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    RT_EVENT event;
+
+    if (rt_event_create(&event, "Control Event", 0, EV_PRIO))
+    {
+        perror("Error while creating control event");
+        exit(EXIT_FAILURE);
+    }
+
     // Init structure used to control the program flow
     Ctl_data_t ctl;
     ctl.running = true;
+    ctl.control_event = &event;
 
     RT_TASK ioctl_ctl_rt_task;
     // Create the IOCTL control task

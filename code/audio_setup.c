@@ -1,5 +1,17 @@
 #include "audio_setup.h"
 
+// send 8192 byte to treatment task
+
+RT_QUEUE mail_box;
+
+void monitoring_task(void *cookie)
+{
+}
+
+void treatment_task(void *cookie)
+{
+}
+
 void acquisition_task(void *cookie)
 {
     Priv_audio_args_t *priv = (Priv_audio_args_t *)cookie;
@@ -18,6 +30,10 @@ void acquisition_task(void *cookie)
 
     while (priv->ctl->running)
     {
+        if (!ctl->audio_running)
+        {
+            // wait
+        }
         // Get the data from the buffer
         ssize_t read = read_samples(priv->samples_buf, FIFO_SIZE * NB_CHAN);
         if (read)
