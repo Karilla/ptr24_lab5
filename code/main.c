@@ -36,6 +36,11 @@
 #define SWITCH_8 (0x01 << 8)
 #define SWITCH_9 (0x01 << 9)
 
+#define SWITCH_0 0x01
+#define SWITCH_1 (0x01 << 1)
+#define SWITCH_8 (0x01 << 8)
+#define SWITCH_9
+
 // Control task defines
 #define CTL_TASK_PERIOD 100000000 // 10HZ
 #define CTL_TASK_PRIORITY 50
@@ -54,37 +59,49 @@ void ioctl_ctl_task(void *cookie)
         if (switch_value & SWITCH_0)
         {
             // activation audio
+            priv->audio_running = true;
+            rt_event_signal(priv->control_event, AUDIO_RUNNING);
         }
         else
         {
             // descativation audio
+            priv->audio_running = false;
+            rt_event_clear(priv->control_event, AUDIO_RUNNING, NULL);
         }
 
         if (switch_value & SWITCH_1)
         {
             // activation video
+            priv->video_running = true;
+            rt_event_signal(priv->control_event, VIDEO_RUNNING);
         }
         else
         {
             // descativation video
+            priv->video_running = false;
+            rt_event_clear(priv->control_event, VIDEO_RUNNING, NULL);
         }
 
         if (switch_value & SWITCH_8)
         {
             // activation grey
+            rt_event_signal(priv->control_event, GREYSCALE_ACTIVATION);
         }
         else
         {
             // descativation grey
+            rt_event_clear(priv->control_event, GREYSCALE_ACTIVATION, NULL);
         }
 
         if (switch_value & SWITCH_9)
         {
             // activation convolution
+            rt_event_signal(priv->control_event, CONVOLUTION_ACTIVATION);
         }
         else
         {
             // descativation convolution
+            rt_event_clear(priv->control_event, CONVOLUTION_ACTIVATION, NULL);
         }
         // Check if the key0 is pressed
         if (keys | KEY0)

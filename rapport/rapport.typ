@@ -53,8 +53,7 @@
 L’objectif de ce laboratoire est de développer un système qui, utilisant la plateforme DE1-SoC, est
 capable de capter et de traiter des données audio et vidéo afin d’en extraire des informations utiles.
 
-Nous examinerons et analyserons également les différents temps d’exécutions des tâches afin d’étu-
-dier et d’optimiser les performances temps réel et l’implémentation de celles-ci.
+Nous examinerons et analyserons également les différents temps d’exécutions des tâches afin d’étudier et d’optimiser les performances temps réel et l’implémentation de celles-ci.
 
 = Tâche Audio
 

@@ -18,7 +18,8 @@
 
 #define AUDIO_RUNNING 1
 #define VIDEO_RUNNING 2
-#define ALL_RUNNING 3
+#define GREYSCALE_ACTIVATION 4
+#define CONVOLUTION_ACTIVATION 8
 
 typedef struct Ctl_data
 {
