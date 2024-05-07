@@ -10,6 +10,9 @@ RT_QUEUE mail_box;
 
 void monitoring_task(void *cookie)
 {
+    rt_printf("=== Audio Monitoring ===\n");
+    rt_printf("Audio task execution time : 0 Hz\n");
+    rt_printf("FFT result : 0 Hz\n\n");
 }
 
 void treatment_task(void *cookie)
@@ -27,10 +30,14 @@ void treatment_task(void *cookie)
      * Vous n'effectuerez une FFT que sur un seul canal. En conséquence, prenez un
      * échantillon sur deux. */
 
+    Priv_audio_args_t *priv = (Priv_audio_args_t *)cookie;
+
     cplx *out = malloc(sizeof(cplx) * FFT_BINS); // Auxiliary array for fft function
     data_t *x;                                   // NOTE : discrete time signal sent by the acquisition task
     cplx *buf = malloc(sizeof(cplx) * FFT_BINS);
     double *power = malloc(sizeof(double) * FFT_BINS);
+
+    buf = memcpy(buf, priv->samples_buf, FFT_BINS * sizeof(cplx)); // Copy the data to the buffer
 
     /* EXAMPLE using the fft function : */
     for (size_t i = 0; i < FFT_BINS; i++)
