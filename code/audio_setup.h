@@ -39,7 +39,19 @@ typedef struct Priv_audio_args
     Ctl_data_t *ctl;
     RT_TASK acquisition_rt_task;
     data_t *samples_buf;
+    RT_QUEUE* mailBox;
 } Priv_audio_args_t;
+
+typedef struct message_treatement
+{
+    data_t *samples_buf;
+}message_treatement_t;
+
+typedef struct message_logging
+{
+    double principal_freq;
+    RT_TIME processing_time;
+}message_logging_t;
 
 /**
  * \brief Read the data from the audio input and writes it to the
