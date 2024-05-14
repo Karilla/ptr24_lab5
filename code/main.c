@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
                       AUDIO_ACK_TASK_PRIORITY, T_JOINABLE,
                       acquisition_task, &priv_audio) != 0)
     {
-        perror("Error while starting acquisition_task");
+        perror("Error while starting treatment task\n");
         exit(EXIT_FAILURE);
     }
     printf("Launched audio acquisition task\n");

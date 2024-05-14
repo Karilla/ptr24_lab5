@@ -39,8 +39,13 @@ typedef struct Priv_audio_args
     Ctl_data_t *ctl;
     RT_TASK acquisition_rt_task;
     data_t *samples_buf;
-    RT_QUEUE* mailBox;
 } Priv_audio_args_t;
+
+typedef struct Priv_audio_sub_args{
+    Ctl_data_t *ctl;
+    RT_TASK sub_task;
+    RT_QUEUE mailBox;
+}Priv_audio_sub_args_t
 
 typedef struct message_treatement
 {
