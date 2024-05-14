@@ -6,13 +6,21 @@
 // send 8192 byte to treatment task
 #define FFT_BUFFER_SIZE 8192
 
-RT_QUEUE mail_box;
-
 void monitoring_task(void *cookie)
 {
-    rt_printf("=== Audio Monitoring ===\n");
-    rt_printf("Audio task execution time : 0 Hz\n");
-    rt_printf("FFT result : 0 Hz\n\n");
+    Priv_audio_args_t *priv = (Priv_audio_args_t *)cookie;
+
+    message_logging_t message;
+
+    while (*priv->running)
+    {
+        rt_queue_read(&priv->mailbox_logging, &message, sizeof(log_t), TM_INFINITE);
+
+        rt_printf("Audio task execution time : %d Hz\n", message->processing_time);
+        rt_printf("FFT result : %d Hz\n\n", message->principal_frequency);
+    }
+
+    rt_printf("Terminate monitoring task\n");
 }
 
 void treatment_task(void *cookie)
@@ -39,20 +47,43 @@ void treatment_task(void *cookie)
 
     buf = memcpy(buf, priv->samples_buf, FFT_BINS * sizeof(cplx)); // Copy the data to the buffer
 
-    /* EXAMPLE using the fft function : */
-    for (size_t i = 0; i < FFT_BINS; i++)
-    {
-        buf[i] = x[i * 2] + 0 * I; // Only take left channel !!!
-    }
-    fft(buf, out, FFT_BINS);
-    for (size_t i = 0; i < FFT_BINS; i++)
-    {
-        double re = crealf(buf[i]);
-        double im = cimagf(buf[i]);
-        power[i] = re * re + im * im;
+    message_treatment_t message;
 
-        /* DO SOMETHING with those values */
+    while (*priv->running)
+    {
+        rt_queue_read(&priv->mailbox_treatment, &message, sizeof(log_t), TM_INFINITE);
+
+        buf = memcpy(buf, message->samples_buf, FFT_BINS * sizeof(cplx)); // Copy the data to the buffer
+
+        RTIME start = rt_timer_read();
+
+        /* EXAMPLE using the fft function : */
+        for (size_t i = 0; i < FFT_BINS; i++)
+        {
+            buf[i] = x[i * 2] + 0 * I; // Only take left channel !!!
+        }
+        fft(buf, out, FFT_BINS);
+        for (size_t i = 0; i < FFT_BINS; i++)
+        {
+            double re = crealf(buf[i]);
+            double im = cimagf(buf[i]);
+            power[i] = re * re + im * im;
+        }
+
+        size_t freq_max = 0; //dominant_freq(power, FFT_BINS);
+        message->max_freqency = freq_max;
+
+        RTIME stop = rt_timer_read();
+        message->processing_time = stop - start;
+
+        rt_queue_send(&priv->mailbox_treatment, message, sizeof(log_t), Q_NORMAL);
     }
+
+    rt_printf("Terminate treatment task\n");
+
+    free(out);
+    free(buf);
+    free(power);
 }
 
 void acquisition_task(void *cookie)
