@@ -3,7 +3,10 @@
 #include <alchemy/task.h>
 
 #include "video_setup.h"
-#include "video_utils.h"
+#include "utils/video_utils.h"
+#include "utils/convolution.h"
+#include "utils/grayscale.h"
+#include "utils/image.h"
 
 void convolution_task(void *cookie)
 {
@@ -11,7 +14,7 @@ void convolution_task(void *cookie)
 
     struct img_1D_t *conv_img = malloc(sizeof(struct img_1D_t));
 
-    convolution_grayscale(priv->img->data, conv_img->data, WIDTH, HEIGHT);
+    convolution_grayscale(priv->buffer, conv_img->data, WIDTH, HEIGHT);
 
     // Copy the convoluted image to the buffer
     memcpy(priv->buffer, conv_img->data, WIDTH * HEIGHT);
@@ -25,7 +28,7 @@ void greyscale_task(void *cookie)
 
     struct img_1D_t *greyscale_img = malloc(sizeof(struct img_1D_t));
 
-    rgba_to_grayscale8(priv->img, greyscale_img->data);
+    rgba_to_grayscale8(priv->buffer, greyscale_img->data);
 
     // Copy the greyscale image to the buffer
     memcpy(priv->buffer, greyscale_img->data, WIDTH * HEIGHT);
@@ -45,9 +48,9 @@ void video_task(void *cookie)
     while (priv->ctl->running)
     {
         // Check if task is running before waiting to avoid going into waiting state
-        if (!ctl->audio_running)
+        if (!priv->ctl->audio_running)
         {
-            rt_event_wait(priv->control_event, VIDEO_RUNNING, NULL, TM_INFINITE);
+            rt_event_wait(priv->ctl->control_event, VIDEO_RUNNING, NULL, EV_ANY, TM_INFINITE);
         }
 
         FILE *file = fopen(VIDEO_FILENAME, "rb");
@@ -68,20 +71,20 @@ void video_task(void *cookie)
             // Copy the data from the file to a buffer
             fread(priv->buffer, WIDTH * HEIGHT * BYTES_PER_PIXEL, 1, file);
 
-            if (rt_event_wait(priv->control_event, GREYSCALE_ACTIVATION, NULL, TM_NONBLOCK) == 1)
+            if (rt_event_wait(priv->ctl->control_event, GREYSCALE_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) == 1)
             {
                 // If greyscale is activated, activate the greyscale task
-                rt_task_start(&priv->greyscale_task, greyscale_task, priv);
+                rt_task_start(&priv->rt_task, greyscale_task, priv);
 
-                if (rt_event_wait(priv->control_event, CONVOLUTION_ACTIVATION, NULL, TM_NONBLOCK) == 1)
+                if (rt_event_wait(priv->ctl->control_event, CONVOLUTION_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) == 1)
                 {
                     // If convolution is activated, activate the convolution task
-                    rt_task_start(&priv->convolution_task, convolution_task, priv);
+                    rt_task_start(&priv->rt_task, convolution_task, priv);
 
-                    rt_task_join(&priv->convolution_task);
+                    rt_task_join(&priv->rt_task);
                 }
 
-                rt_task_join(&priv->greyscale_task);
+                rt_task_join(&priv->rt_task);
             }
 
             // Copy the data from the buffer to the video buffer
