@@ -16,7 +16,8 @@
 #ifndef AUDIO_SETUP_H
 #define AUDIO_SETUP_H
 
-#include <alchemy/task.h>
+#include <alchemy/queue.h>
+#include <alchemy/timer.h>
 #include <stdbool.h>
 
 #include "audio_utils.h"
@@ -41,22 +42,24 @@ typedef struct Priv_audio_args
     data_t *samples_buf;
 } Priv_audio_args_t;
 
-typedef struct Priv_audio_sub_args{
+typedef struct Priv_audio_sub_args
+{
     Ctl_data_t *ctl;
     RT_TASK sub_task;
     RT_QUEUE mailBox;
-}Priv_audio_sub_args_t
+} Priv_audio_sub_args_t;
 
-typedef struct message_treatement
+typedef struct message_treatment
 {
     data_t *samples_buf;
-}message_treatement_t;
+    RT_QUEUE *mailbox_logging;
+} message_treatment_t;
 
 typedef struct message_logging
 {
     double principal_freq;
-    RT_TIME processing_time;
-}message_logging_t;
+    RTIME processing_time;
+} message_logging_t;
 
 /**
  * \brief Read the data from the audio input and writes it to the
