@@ -34,11 +34,16 @@
 #define VIDEO_FILENAME "output_video.raw"
 
 #define S_IN_NS 1000000000UL
+#define GREYSCALE_RUNNING 1
+#define CONVOLUTION_RUNNING 2
+#define GREYSCALE_STOP 4
+#define CONVOLUTION_STOP 8
 
 typedef struct Priv_video_args
 {
     Ctl_data_t *ctl;
     RT_TASK rt_task;
+    RT_EVENT *video_task_event;
     uint8_t *buffer;
 } Priv_video_args_t;
 
