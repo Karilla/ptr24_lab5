@@ -18,6 +18,8 @@
 
 #include <alchemy/queue.h>
 #include <alchemy/timer.h>
+#include <alchemy/task.h>
+#include <alchemy/heap.h>
 #include <stdbool.h>
 
 #include "audio_utils.h"
@@ -40,6 +42,7 @@ typedef struct Priv_audio_args
     Ctl_data_t *ctl;
     RT_TASK acquisition_rt_task;
     data_t *samples_buf;
+    RT_HEAP *heap;
 } Priv_audio_args_t;
 
 typedef struct Priv_audio_sub_args

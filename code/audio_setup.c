@@ -43,20 +43,18 @@ void treatment_task(void *cookie)
      * échantillon sur deux. */
 
     Priv_audio_sub_args_t *priv = (Priv_audio_sub_args_t *)cookie;
-    cplx *out = malloc(sizeof(cplx) * FFT_BUFFER_SIZE); // Auxiliary array for fft function
-    data_t *x;                                          // NOTE : discrete time signal sent by the acquisition task
-    cplx *buf = malloc(sizeof(cplx) * FFT_BUFFER_SIZE);
-    double *power = malloc(sizeof(double) * FFT_BUFFER_SIZE);
+    cplx out[FFT_BUFFER_SIZE]; // Auxiliary array for fft function
+    data_t *x;                 // NOTE : discrete time signal sent by the acquisition task
+    cplx buf[FFT_BUFFER_SIZE];
+    double power[FFT_BUFFER_SIZE];
 
     message_treatment_t message;
-
-    buf = memcpy(buf, message.samples_buf, FFT_BUFFER_SIZE * sizeof(cplx)); // Copy the data to the buffer
 
     while (priv->ctl->running)
     {
         rt_queue_read(&priv->mailBox, &message, sizeof(message_treatment_t), TM_INFINITE);
 
-        buf = memcpy(buf, message.samples_buf, FFT_BUFFER_SIZE * sizeof(cplx)); // Copy the data to the buffer
+        memcpy(x, message.samples_buf, FFT_BUFFER_SIZE * sizeof(cplx)); // Copy the data to the buffer
 
         RTIME start = rt_timer_read();
 
@@ -85,10 +83,6 @@ void treatment_task(void *cookie)
     }
 
     rt_printf("Terminate treatment task\n");
-
-    free(out);
-    free(buf);
-    free(power);
 }
 
 void acquisition_task(void *cookie)
@@ -107,6 +101,7 @@ void acquisition_task(void *cookie)
 
     uint32_t nb_byte_readen = 0;
 
+    // Create messagebox for both treatment and logging task
     RT_QUEUE *mailbox_treatment;
     RT_QUEUE *mailbox_logging;
     rt_queue_create(mailbox_treatment, "Audio Message Queue", sizeof(message_treatment_t), Q_UNLIMITED, Q_FIFO);
@@ -137,6 +132,9 @@ void acquisition_task(void *cookie)
         return;
     }
 
+    message_treatment_t message;
+    rt_queue_alloc(mailbox_treatment, sizeof(message_treatment_t));
+
     while (priv->ctl->running)
     {
         // Check if task is running before waiting to avoid going into waiting state
@@ -152,7 +150,7 @@ void acquisition_task(void *cookie)
             {
                 // On demarre la tache traitement et on lui envoie le buffer plus la taille du buffer
                 nb_byte_readen = 0;
-                message_treatment_t message;
+
                 message.samples_buf = priv->samples_buf;
                 message.mailbox_logging = mailbox_logging;
                 rt_queue_send(mailbox_treatment, &message, sizeof(message_treatment_t), Q_NORMAL);
@@ -169,5 +167,6 @@ void acquisition_task(void *cookie)
 
         rt_task_wait_period(NULL);
     }
+    rt_queue_free(mailbox_treatment, message);
     rt_printf("Terminating acquisition task\n");
 }

@@ -124,6 +124,13 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    RT_HEAP audio_heap;
+    if (rt_heap_create(&audio_heap, "Audio Heap", 100000, H_PRIO) != 0)
+    {
+        perror("Error while creating heap...\n");
+        exit(EXIT_FAILURE);
+    }
+
     RT_EVENT event;
 
     if (rt_event_create(&event, "Control Event", 0, EV_PRIO))
@@ -137,8 +144,8 @@ int main(int argc, char *argv[])
     ctl.running = true;
     ctl.control_event = &event;
 
-    RT_TASK ioctl_ctl_rt_task;
     // Create the IOCTL control task
+    RT_TASK ioctl_ctl_rt_task;
     if (rt_task_spawn(&ioctl_ctl_rt_task, "program control task", 0,
                       CTL_TASK_PRIORITY, T_JOINABLE,
                       ioctl_ctl_task, &ctl) != 0)
@@ -159,6 +166,7 @@ int main(int argc, char *argv[])
     Priv_audio_args_t priv_audio;
     priv_audio.samples_buf = (data_t *)malloc(FIFO_SIZE * NB_CHAN);
     priv_audio.ctl = &ctl;
+    priv.heap = &audio_heap;
 
     // Create the audio acquisition task
     if (rt_task_spawn(&priv_audio.acquisition_rt_task, "audio task", 0,
@@ -208,6 +216,8 @@ int main(int argc, char *argv[])
     clear_ioctl();
     clear_audio();
     clear_video();
+
+    rt_heap_delete(&audio_heap);
 
     // Free everything else
     free(priv_audio.samples_buf);
