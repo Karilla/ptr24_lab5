@@ -3,13 +3,13 @@
 
 #include <stdint.h>
 
-struct img_1D_t
+typedef struct img_1D_t
 {
     int width;
     int height;
     int components;
 
     uint8_t *data;
-};
+} img_1D_t;
 
 #endif

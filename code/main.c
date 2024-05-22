@@ -36,11 +36,6 @@
 #define SWITCH_8 (0x01 << 8)
 #define SWITCH_9 (0x01 << 9)
 
-#define SWITCH_0 0x01
-#define SWITCH_1 (0x01 << 1)
-#define SWITCH_8 (0x01 << 8)
-#define SWITCH_9
-
 // Control task defines
 #define CTL_TASK_PERIOD 100000000 // 10HZ
 #define CTL_TASK_PRIORITY 50
@@ -185,7 +180,10 @@ int main(int argc, char *argv[])
 
     // Init private data used for the video tasks
     Priv_video_args_t priv_video;
-    priv_video.buffer = (uint8_t *)malloc(HEIGHT * WIDTH * BYTES_PER_PIXEL);
+    priv_video.img.width = WIDTH;
+    priv_video.img.height = HEIGHT;
+    priv_video.img.components = 4;
+    priv_video.img.data = (uint8_t *)malloc(HEIGHT * WIDTH * BYTES_PER_PIXEL);
     priv_video.ctl = &ctl;
 
     // Create the video acquisition task

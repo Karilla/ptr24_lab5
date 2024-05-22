@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include "control.h"
+#include "utils/image.h"
 
 #define VIDEO_ACK_TASK_PRIORITY 50
 
@@ -30,6 +31,7 @@
 #define FRAMERATE 15
 #define NB_FRAMES 300
 #define BYTES_PER_PIXEL 4
+#define VIDEO_RESOLUTION (WIDTH * HEIGHT * BYTES_PER_PIXEL)
 
 #define VIDEO_FILENAME "output_video.raw"
 
@@ -44,7 +46,7 @@ typedef struct Priv_video_args
     Ctl_data_t *ctl;
     RT_TASK rt_task;
     RT_EVENT *video_task_event;
-    uint8_t *buffer;
+    img_1D_t img;
 } Priv_video_args_t;
 
 /**

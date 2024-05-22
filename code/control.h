@@ -15,6 +15,7 @@
 #define CONTROL_H
 
 #include <stdbool.h>
+#include <alchemy/event.h>
 
 #define AUDIO_RUNNING 1
 #define VIDEO_RUNNING 2
