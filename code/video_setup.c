@@ -18,6 +18,11 @@ void convolution_task(void *cookie)
 
     uint8_t *conv_data = malloc(VIDEO_RESOLUTION);
     uint8_t *grey_8 = malloc(VIDEO_RESOLUTION);
+    struct img_1D_t *result;
+    result->width = WIDTH;
+    result->height = HEIGHT;
+    result->components = 4;
+    result->data = malloc(VIDEO_RESOLUTION);
 
     if (!conv_data || !grey_8)
     {
@@ -29,14 +34,14 @@ void convolution_task(void *cookie)
     {
         rt_event_wait(priv->video_task_event, CONVOLUTION_RUNNING, NULL, EV_ANY, TM_INFINITE);
 
-        rt_task_sleep(100000000);
-
         rgba_to_grayscale8(&priv->img, grey_8);
         convolution_grayscale(grey_8, conv_data, WIDTH, HEIGHT);
-        grayscale_to_rgba(conv_data, &priv->img);
+        grayscale_to_rgba(conv_data, result);
+
+        memcpy(get_video_buffer(), result->data, VIDEO_RESOLUTION);
         
         rt_event_clear(priv->video_task_event, CONVOLUTION_RUNNING, NULL);
-        rt_event_signal(priv->video_task_event, CONVOLUTION_STOP);
+        //rt_event_signal(priv->video_task_event, CONVOLUTION_STOP);
     }
 
     free(conv_data);
@@ -63,7 +68,7 @@ void greyscale_task(void *cookie)
         rgba_to_grayscale32(&priv->img, greyscale_img);
 
         // Copy the greyscale image to the buffer
-        memcpy(priv->img.data, greyscale_img->data, VIDEO_RESOLUTION);
+        memcpy(get_video_buffer(), greyscale_img->data, VIDEO_RESOLUTION);
 
         rt_event_clear(priv->video_task_event, GREYSCALE_RUNNING, NULL);
         rt_event_signal(priv->video_task_event, GREYSCALE_STOP);
@@ -94,7 +99,7 @@ void video_task(void *cookie)
     greyscale_task_args.video_task_event = &priv->video_task_event;
 
    
-    if (rt_task_spawn(&greyscale_task_args.rt_task, "Greyscale Task", 0, VIDEO_ACK_TASK_PRIORITY, T_JOINABLE, greyscale_task, &greyscale_task_args))
+    if (rt_task_spawn(&greyscale_task_args.rt_task, "Greyscale Task", 0, VIDEO_TASK_PRIORITY, T_JOINABLE, greyscale_task, &greyscale_task_args))
     {
         rt_printf("Error while launching greyscale task\n");
         exit(EXIT_FAILURE);
@@ -106,7 +111,7 @@ void video_task(void *cookie)
     convolution_task_args.img = priv->img;
     convolution_task_args.video_task_event = &priv->video_task_event;
     
-    if (rt_task_spawn(&convolution_task_args.rt_task, "Convolution Task", 0, VIDEO_ACK_TASK_PRIORITY, T_JOINABLE, convolution_task, &convolution_task_args))
+    if (rt_task_spawn(&convolution_task_args.rt_task, "Convolution Task", 0, VIDEO_TASK_PRIORITY, T_JOINABLE, convolution_task, &convolution_task_args))
     {
         rt_printf("Error while launching convolution task\n");
         exit(EXIT_FAILURE);
@@ -164,23 +169,11 @@ void video_task(void *cookie)
         {
             // If convolution is activated, activate the convolution task
             rt_event_signal(convolution_task_args.video_task_event, CONVOLUTION_RUNNING);
-
-            // Wait for the convolution task to finish and copy the data to the video buffer
-            if (rt_event_wait(convolution_task_args.video_task_event, CONVOLUTION_STOP, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK) {
-                memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
-                rt_event_clear(convolution_task_args.video_task_event, CONVOLUTION_STOP, NULL);
-            }
         }
         else if (rt_event_wait(priv->ctl->control_event, GREYSCALE_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK)
         {
             // If greyscale is activated, activate the greyscale task
             rt_event_signal(greyscale_task_args.video_task_event, GREYSCALE_RUNNING);
-            
-            // Wait for the greyscale task to finish and copy the data to the video buffer
-            if (rt_event_wait(greyscale_task_args.video_task_event, GREYSCALE_STOP, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK) {
-                memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
-                rt_event_clear(greyscale_task_args.video_task_event, GREYSCALE_STOP, NULL);
-            }
         } 
         else
         {

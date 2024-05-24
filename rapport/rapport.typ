@@ -77,8 +77,8 @@ Pour la partie audio, le micro doit être branché sur l'entrée audio de la car
 Pour activer ou désactier une tâche, il suffit d'actionner un switch sur la DE-1.
 
 #table(
-  columns: 5,
-  inset: 10pt,
+  columns: (1fr, 1fr, 1fr, 1fr, 1fr),
+  inset: 7pt,
   align: center + horizon,
   table.header(
     [], [*Convolution*], [*Greyscale*], [*Video task*], [*Audio task*]
@@ -117,7 +117,7 @@ Voici les temps d'exécution de chaque tâche. La mesure à été effectuée sur
 === Vidéo
 
 ```
------------------------summary1.c -----------------------------
+--------------------------summary1.c---------------------------
   Total of 44 values 
     Minimum  = 17.475480 (position = 4) 
     Maximum  = 17.596350 (position = 14) 
@@ -136,7 +136,7 @@ On remarque que le temps d'exécution est très stable, avec un écart type de `
 === Greyscale
 
 ```
------------------------summary1.c -----------------------------
+--------------------------summary1.c---------------------------
   Total of 44 values 
     Minimum  = 27.527860 (position = 25) 
     Maximum  = 27.737950 (position = 0) 
@@ -155,7 +155,8 @@ En comparaison avec la tâche vidéo, la variation du temps d'exécution est l'�
 === Convolution
 
 ```
------------------------summary1.c -----------------------------
+--------------------------summary1.c---------------------------
+
   Total of 44 values 
     Minimum  = 110.237930 (position = 15) 
     Maximum  = 111.755900 (position = 12) 
@@ -170,6 +171,121 @@ En comparaison avec la tâche vidéo, la variation du temps d'exécution est l'�
 La convolution est la tâche la plus gourmande en temps. Nous sommes en dessous de la limite de 66.67ms pour afficher une image à 15fps. Il ne serra pas possible d'ordonnancer cette tâche avec les autres tâches.
 
 Un temps d'exécution si élevé est parfaitement compréhensible, car la convolution est une opération demandant plusieur calculs pour chaque pixel de l'image.
+
+== Mesure de la tâche d'aquisition avec une seconde tâche active
+
+Comme demandé à l'étape 2 du laboratoire « _Il est important que la tâche d’acquisition ne soit jamais polluée (...) cette tâche récupère toujours les données à la fréquence souhaitée (15HZ)._ »
+
+Pour vérifier cela, nous avons mesuré le temps d'exécution de la tâche d'aquisition avec une seconde tâche active.
+
+Comme comparatif nous prendrons la mesure ci dessu de la tâche d'aquisition seule.
+
+=== Aquisition et greyscale
+
+```
+--------------------------summary1.c---------------------------
+  Total of 44 values 
+    Minimum  = 23.103180 (position = 32) 
+    Maximum  = 23.967100 (position = 27) 
+    Sum      = 1026.348170 
+    Mean     = 23.326095 
+    Variance = 0.100914 
+    Std Dev  = 0.317669 
+    CoV      = 0.013619 
+---------------------------------------------------------------
+```
+
+#align( center,
+table(
+  columns: (12em, 12em),
+  inset: 7pt,
+  stroke: none,
+  align: center,
+  table.header(
+    [*Tâches*], [*Temp d'exécution*]
+  ),
+  [Aquisition],
+  [17.5],
+  [Greyscale],
+  [27.6],
+  [Aquisition + Greyscale],
+  [23.3]
+))
+
+Ces trois mesures nous permettent de constater que la tâche d'aquisition est légérement protégée des autres tâches. En effet, le temps d'exécution de la tâche d'aquisition augmente de `~` 5ms lorsque la tâche greyscale est active. Mais s'exécute plus rapidement que la tâche greyscale seule.
+
+=== Aquisition et convolution
+
+```
+--------------------------summary1.c---------------------------
+  Total of 44 values 
+    Minimum  = 11.847850 (position = 31) 
+    Maximum  = 23.370770 (position = 36) 
+    Sum      = 694.882030 
+    Mean     = 15.792773 
+    Variance = 28.779574 
+    Std Dev  = 5.364660 
+    CoV      = 0.339691 
+---------------------------------------------------------------
+```
+
+On peut observer un patern au sein des mesures.
+
+#align(center,
+table(
+  columns: (5em, 10em),
+  inset: 5pt,
+  stroke: 1pt,
+  align: center,
+  table.header(
+    [*Mesures*], [*Temp d'exécution*]
+  ),
+  [1],
+  [23.238460],
+  [2],
+  [11.848320],
+  [3],
+  [11.952310],
+  [4],
+  [23.229040],
+  [5],
+  [11.955930],
+  [6],
+  [11.961000],
+  [7],
+  [23.242710],
+  [8],
+  [11.857240],
+  [9],
+  [11.979860],
+  [10],
+  [23.236110]
+))
+
+On peut voir que le temps d'exécution fluctue entre `~` 11ms et `~` 23ms. Je ne saurai expliquer pourquoi cette fluctuation est présente.
+
+#align( center,
+table(
+  columns: (12em, 12em),
+  inset: 7pt,
+  stroke: none,
+  align: center,
+  table.header(
+    [*Tâches*], [*Temp d'exécution*]
+  ),
+  [Aquisition],
+  [17.5],
+  [Convolution],
+  [110.7],
+  [Aquisition + Convolution],
+  [15.8]
+))
+
+On observe que le temps d'exécution de la tâche d'aquisition avec la convolution est le plus faible. Cela ne devrait pas être le cas, car la convolution est la tâche la plus gourmande en temps.
+
+Mais si l'on regarde les valeurs maximum, environ 23.2 ms, on observe quand même que la tâche d'aquisition est protégée des autres tâches.
+
+La tâche d'aquisition ne s'exécute plus à la mème vitesse, son temps d'exécution augmente de `~`30% lorsqu'elle est en concurrence avec la tâche de convolution. Mais elle reste en dessous de la limite de 66.67ms pour une lecture à 15fps.
 
 = Ordonnancement des tâches
 
