@@ -24,6 +24,7 @@
 #include "utils/image.h"
 
 #define VIDEO_ACK_TASK_PRIORITY 50
+#define VIDEO_TASK_PRIORITY 40
 
 // Video defines
 #define WIDTH 320
