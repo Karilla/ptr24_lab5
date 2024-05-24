@@ -10,6 +10,8 @@
 #include "utils/grayscale.h"
 #include "utils/image.h"
 
+#define MEASURE 1
+
 void convolution_task(void *cookie)
 {
     Priv_video_args_t *priv = (Priv_video_args_t *)cookie;
@@ -26,13 +28,12 @@ void convolution_task(void *cookie)
     while (priv->ctl->running)
     {
         rt_event_wait(priv->video_task_event, CONVOLUTION_RUNNING, NULL, EV_ANY, TM_INFINITE);
-        
+
+        rt_task_sleep(100000000);
+
         rgba_to_grayscale8(&priv->img, grey_8);
         convolution_grayscale(grey_8, conv_data, WIDTH, HEIGHT);
         grayscale_to_rgba(conv_data, &priv->img);
-
-        // Copy the convoluted image to the buffer
-        //memcpy(priv->img.data, conv_img->data, VIDEO_RESOLUTION);
         
         rt_event_clear(priv->video_task_event, CONVOLUTION_RUNNING, NULL);
         rt_event_signal(priv->video_task_event, CONVOLUTION_STOP);
@@ -57,14 +58,12 @@ void greyscale_task(void *cookie)
 
     while (priv->ctl->running)
     {
-        //rt_printf("Greyscale task wait\n");
         rt_event_wait(priv->video_task_event, GREYSCALE_RUNNING, NULL, EV_ANY, TM_INFINITE);
-        
+
         rgba_to_grayscale32(&priv->img, greyscale_img);
 
         // Copy the greyscale image to the buffer
         memcpy(priv->img.data, greyscale_img->data, VIDEO_RESOLUTION);
-        //memcpy(get_video_buffer(), greyscale_img->data, VIDEO_RESOLUTION);
 
         rt_event_clear(priv->video_task_event, GREYSCALE_RUNNING, NULL);
         rt_event_signal(priv->video_task_event, GREYSCALE_STOP);
@@ -127,9 +126,15 @@ void video_task(void *cookie)
         exit(EXIT_FAILURE);
     }
 
+    RTIME now, previous;
+
     // Loop that reads a file with raw data
     while (priv->ctl->running)
     {
+#if MEASURE
+        previous = rt_timer_read();
+#endif
+
         // Check if task is running before waiting to avoid going into waiting state
         if (!priv->ctl->video_running)
         {
@@ -155,27 +160,44 @@ void video_task(void *cookie)
             continue;
         }
 
-        if (rt_event_wait(priv->ctl->control_event, GREYSCALE_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK)
+        if (rt_event_wait(priv->ctl->control_event, CONVOLUTION_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK)
+        {
+            // If convolution is activated, activate the convolution task
+            rt_event_signal(convolution_task_args.video_task_event, CONVOLUTION_RUNNING);
+
+            // Wait for the convolution task to finish and copy the data to the video buffer
+            if (rt_event_wait(convolution_task_args.video_task_event, CONVOLUTION_STOP, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK) {
+                memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
+                rt_event_clear(convolution_task_args.video_task_event, CONVOLUTION_STOP, NULL);
+            }
+        }
+        else if (rt_event_wait(priv->ctl->control_event, GREYSCALE_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK)
         {
             // If greyscale is activated, activate the greyscale task
             rt_event_signal(greyscale_task_args.video_task_event, GREYSCALE_RUNNING);
-            rt_event_wait(greyscale_task_args.video_task_event, GREYSCALE_STOP, NULL, EV_ANY, TM_INFINITE);
-
-            if (rt_event_wait(priv->ctl->control_event, CONVOLUTION_ACTIVATION, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK)
-            {
-                // If convolution is activated, activate the convolution task
-                rt_event_signal(convolution_task_args.video_task_event, CONVOLUTION_RUNNING);
-                rt_event_wait(convolution_task_args.video_task_event, CONVOLUTION_STOP, NULL, EV_ANY, TM_INFINITE);
-            }
-        }
             
-        // Copy the data from the buffer to the video buffer
-        memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
-
-        if (rt_task_wait_period(NULL) < 0)
+            // Wait for the greyscale task to finish and copy the data to the video buffer
+            if (rt_event_wait(greyscale_task_args.video_task_event, GREYSCALE_STOP, NULL, EV_ANY, TM_NONBLOCK) != -EWOULDBLOCK) {
+                memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
+                rt_event_clear(greyscale_task_args.video_task_event, GREYSCALE_STOP, NULL);
+            }
+        } 
+        else
         {
-            //rt_printf("Error while waiting for video task period\n");
+            // Show the video without any treatment
+            memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
         }
+
+
+#if MEASURE
+        now = rt_timer_read();
+        rt_printf("%ld.%04ld\n",
+		(long)(now - previous) / 1000000,
+		(long)(now - previous) % 1000000);
+        previous = now;
+#endif
+
+        rt_task_wait_period(NULL);
     }
 
     close(fd);
