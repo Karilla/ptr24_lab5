@@ -12,6 +12,7 @@ typedef double complex cplx;
 
 void monitoring_task(void *cookie)
 {
+    rt_printf("On monitore ou quoi ?\n");
     Priv_audio_sub_args_t *priv = (Priv_audio_sub_args_t *)cookie;
 
     message_logging_t message;
@@ -52,6 +53,7 @@ void treatment_task(void *cookie)
 
     while (priv->ctl->running)
     {
+        rt_printf("On acquisitionne\n");
         rt_queue_read(&priv->mailBox, &message, sizeof(message_treatment_t), TM_INFINITE);
 
         memcpy(x, message.samples_buf, FFT_BUFFER_SIZE * sizeof(cplx)); // Copy the data to the buffer
@@ -79,7 +81,7 @@ void treatment_task(void *cookie)
         RTIME stop = rt_timer_read();
         loggin_message.processing_time = stop - start;
 
-        rt_queue_send(message.mailbox_logging, &loggin_message, sizeof(message_logging_t), Q_NORMAL);
+        rt_queue_send(&message.mailbox_logging, &loggin_message, sizeof(message_logging_t), Q_NORMAL);
     }
 
     rt_printf("Terminate treatment task\n");
@@ -88,8 +90,6 @@ void treatment_task(void *cookie)
 void acquisition_task(void *cookie)
 {
     Priv_audio_args_t *priv = (Priv_audio_args_t *)cookie;
-
-    RT_TASK treatment;
 
     int err;
     // Calculate the minimum frequency of the task
@@ -102,14 +102,18 @@ void acquisition_task(void *cookie)
     uint32_t nb_byte_readen = 0;
 
     // Create messagebox for both treatment and logging task
-    RT_QUEUE *mailbox_treatment;
-    RT_QUEUE *mailbox_logging;
-    rt_queue_create(mailbox_treatment, "Audio Message Queue", sizeof(message_treatment_t), Q_UNLIMITED, Q_FIFO);
-    rt_queue_create(mailbox_logging, "Audio Message Queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO);
+    RT_QUEUE mailbox_treatment;
+    RT_QUEUE mailbox_logging;
+    if (rt_queue_create(&mailbox_treatment, "Audio Treatment Message Queue", sizeof(message_treatment_t), Q_UNLIMITED, Q_FIFO) != 0)
+    {
+        rt_printf("OPS\n");
+        exit(EXIT_FAILURE);
+    }
+    rt_queue_create(&mailbox_logging, "Audio Monitoring Message Queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO);
 
     Priv_audio_sub_args_t treatment_task_args;
     treatment_task_args.ctl = priv->ctl;
-    treatment_task_args.mailBox = *mailbox_treatment;
+    treatment_task_args.mailBox = mailbox_treatment;
 
     if (rt_task_spawn(&treatment_task_args.sub_task, "Treatment Task", 0, 50, T_JOINABLE, treatment_task, &treatment_task_args))
     {
@@ -119,7 +123,7 @@ void acquisition_task(void *cookie)
 
     Priv_audio_sub_args_t monitoring_task_args;
     monitoring_task_args.ctl = priv->ctl;
-    monitoring_task_args.mailBox = *mailbox_logging;
+    monitoring_task_args.mailBox = mailbox_logging;
 
     if (rt_task_spawn(&monitoring_task_args.sub_task, "Monitoring Task", 0, 50, T_JOINABLE, monitoring_task, &monitoring_task_args))
     {
@@ -133,7 +137,7 @@ void acquisition_task(void *cookie)
     }
 
     message_treatment_t message;
-    rt_queue_alloc(mailbox_treatment, sizeof(message_treatment_t));
+    rt_queue_alloc(&mailbox_treatment, sizeof(message_treatment_t));
 
     while (priv->ctl->running)
     {
@@ -153,7 +157,7 @@ void acquisition_task(void *cookie)
 
                 message.samples_buf = priv->samples_buf;
                 message.mailbox_logging = mailbox_logging;
-                rt_queue_send(mailbox_treatment, &message, sizeof(message_treatment_t), Q_NORMAL);
+                rt_queue_send(&mailbox_treatment, &message, sizeof(message_treatment_t), Q_NORMAL);
                 memset(priv->samples_buf, 0, FFT_BUFFER_SIZE);
             }
             else
@@ -167,6 +171,6 @@ void acquisition_task(void *cookie)
 
         rt_task_wait_period(NULL);
     }
-    rt_queue_free(mailbox_treatment, message);
+    // rt_queue_free(mailbox_treatment, message);
     rt_printf("Terminating acquisition task\n");
 }

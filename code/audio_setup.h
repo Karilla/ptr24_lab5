@@ -55,7 +55,7 @@ typedef struct Priv_audio_sub_args
 typedef struct message_treatment
 {
     data_t *samples_buf;
-    RT_QUEUE *mailbox_logging;
+    RT_QUEUE mailbox_logging;
 } message_treatment_t;
 
 typedef struct message_logging
