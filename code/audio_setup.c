@@ -1,9 +1,11 @@
 #include "audio_setup.h"
+#include <alchemy/task.h>
 #include "utils/fft_utils.h"
 #include "control.h"
 #include <complex.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 // send 8192 byte to treatment task
 #define FFT_BUFFER_SIZE 8192
@@ -28,9 +30,8 @@ void monitoring_task(void *cookie)
     rt_printf("Terminate monitoring task\n");
 }
 
-void treatment_task(void *cookie)
-{
-
+void treatment_task_t_lol(void *cookie)
+{ /*
     /* TODO : compléter la tâche processing de telle sorte qu'elle recoive les
      * échantillons de la tâche acquisition. Une fois reçu les échantillons,
      * appliquer une FFT à l'aide de la fonction fft fournie, puis trouver
@@ -41,19 +42,22 @@ void treatment_task(void *cookie)
      * Notez bien que le codec audio échantillone à 48 Khz.
      * Notez aussi que le driver audio renvoie des échantillons stéréo interlacés.
      * Vous n'effectuerez une FFT que sur un seul canal. En conséquence, prenez un
-     * échantillon sur deux. */
+     * échantillon sur deux.
+     */
 
     Priv_audio_sub_args_t *priv = (Priv_audio_sub_args_t *)cookie;
-    cplx out[FFT_BUFFER_SIZE]; // Auxiliary array for fft function
-    data_t *x;                 // NOTE : discrete time signal sent by the acquisition task
-    cplx buf[FFT_BUFFER_SIZE];
-    double power[FFT_BUFFER_SIZE];
+
+    cplx *out = (cplx *)malloc(sizeof(cplx) * FFT_BUFFER_SIZE); // Auxiliary array for fft function
+
+    data_t *x; // NOTE : discrete time signal sent by the acquisition task
+    cplx *buf = (cplx *)malloc(sizeof(cplx) * FFT_BUFFER_SIZE);
+    double *power = (cplx *)malloc(sizeof(cplx) * FFT_BUFFER_SIZE);
 
     message_treatment_t message;
 
     while (priv->ctl->running)
     {
-        rt_printf("On acquisitionne\n");
+
         rt_queue_read(&priv->mailBox, &message, sizeof(message_treatment_t), TM_INFINITE);
 
         memcpy(x, message.samples_buf, FFT_BUFFER_SIZE * sizeof(cplx)); // Copy the data to the buffer
@@ -61,7 +65,8 @@ void treatment_task(void *cookie)
         RTIME start = rt_timer_read();
 
         /* EXAMPLE using the fft function : */
-        for (size_t i = 0; i < FFT_BUFFER_SIZE; i++)
+
+        for (size_t i = 0; i < FFT_BUFFER_SIZE / 2; i++)
         {
             buf[i] = x[i * 2] + 0 * I; // Only take left channel !!!
         }
@@ -104,24 +109,34 @@ void acquisition_task(void *cookie)
     // Create messagebox for both treatment and logging task
     RT_QUEUE mailbox_treatment;
     RT_QUEUE mailbox_logging;
+
     if (rt_queue_create(&mailbox_treatment, "Audio Treatment Message Queue", sizeof(message_treatment_t), Q_UNLIMITED, Q_FIFO) != 0)
     {
         rt_printf("OPS\n");
         exit(EXIT_FAILURE);
     }
-    rt_queue_create(&mailbox_logging, "Audio Monitoring Message Queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO);
+    if (rt_queue_create(&mailbox_logging, "Audio MonmailBoxitoring Message Queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO) != 0)
+    {
+        rt_printf("Error creating mailbox logging\n");
+        exit(EXIT_FAILURE);
+    }
 
-    Priv_audio_sub_args_t treatment_task_args;
-    treatment_task_args.ctl = priv->ctl;
-    treatment_task_args.mailBox = mailbox_treatment;
+    Priv_audio_sub_args_t treatment_task_arg = {0};
+    treatment_task_arg.ctl = priv->ctl;
+    treatment_task_arg.mailBox = mailbox_treatment;
 
-    if (rt_task_spawn(&treatment_task_args.sub_task, "Treatment Task", 0, 50, T_JOINABLE, treatment_task, &treatment_task_args))
+    rt_printf("task.ctl = %p\n", &treatment_task_arg.ctl);
+    rt_printf("task.mailBox = %p\n", &treatment_task_arg.mailBox);
+    rt_printf("task.sub_task = %p\n", &treatment_task_arg.sub_task);
+
+    if (rt_task_spawn(&treatment_task_arg.sub_task, "Treatment Task", 0, 50, T_JOINABLE, treatment_task_t_lol, &treatment_task_arg))
     {
         rt_printf("Error while launching treatment task\n");
         exit(EXIT_FAILURE);
     }
+    rt_task_sleep(1000);
 
-    Priv_audio_sub_args_t monitoring_task_args;
+    Priv_audio_sub_args_t monitoring_task_args = {0};
     monitoring_task_args.ctl = priv->ctl;
     monitoring_task_args.mailBox = mailbox_logging;
 
@@ -137,7 +152,11 @@ void acquisition_task(void *cookie)
     }
 
     message_treatment_t message;
-    rt_queue_alloc(&mailbox_treatment, sizeof(message_treatment_t));
+    if (rt_queue_alloc(&mailbox_treatment, sizeof(message_treatment_t)) == NULL)
+    {
+        rt_printf("Oups \n");
+        exit(EXIT_FAILURE);
+    }
 
     while (priv->ctl->running)
     {
@@ -148,15 +167,16 @@ void acquisition_task(void *cookie)
         }
         // Get the data from the buffer
         ssize_t read = read_samples(priv->samples_buf, FIFO_SIZE * NB_CHAN);
+        write_samples(priv->samples_buf, read);
+
         if (read)
         {
             if (nb_byte_readen + read > FFT_BUFFER_SIZE)
             {
                 // On demarre la tache traitement et on lui envoie le buffer plus la taille du buffer
                 nb_byte_readen = 0;
-
-                message.samples_buf = priv->samples_buf;
-                message.mailbox_logging = mailbox_logging;
+                message.samples_buf = fft_buffer;
+                message.mailbox_logging = mailbox_logging; // A FIX CEST HORRIBLE
                 rt_queue_send(&mailbox_treatment, &message, sizeof(message_treatment_t), Q_NORMAL);
                 memset(priv->samples_buf, 0, FFT_BUFFER_SIZE);
             }
