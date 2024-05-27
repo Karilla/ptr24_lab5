@@ -499,6 +499,10 @@ L'utilisation d'un tel processeur n'est pas le plus optimal. Pour respecter la c
 il pourrait être plus efficace d'utiliser une FPGA ou un hardware spécialisé
 dans ce genre de traitement. Pareil pour l'audio, un dsp serait plus pertinent car il a un processeur spécialisé pour ce genre de tâche et nous permettrait de meilleur performance.
 
+Nous pourrions aussi implémenter tout les traitement en assembleur afin d'optimiser le calcul mais cela au dela des limites du cours.
+
+Si nous avions mieux gérer notre temps il aurait été pertinent de mesurer avec un oscilloscope le réveil des taches non periodique tel que le traitement ainsi que le logging ! Malheureusement nous n'avons pas eu le temps de mettre en place de tel procédé !
+
 
 ////////////////////////////////////////////////////////////////
 
