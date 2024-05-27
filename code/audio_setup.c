@@ -56,7 +56,7 @@ void treatment_task_t_lol(void *cookie)
     data_t *x = (data_t *)malloc(sizeof(data_t) * FFT_BUFFER_SIZE); // NOTE : discrete time signal sent by the acquisition task
     cplx *buf = (cplx *)malloc(sizeof(cplx) * FFT_BUFFER_SIZE_LEFT_CANAL);
     double *power = (double *)malloc(sizeof(double) * FFT_BUFFER_SIZE_LEFT_CANAL);
-    if (rt_queue_create(&priv->mailbox_logging, "log_queue", 2 * sizeof(double), Q_UNLIMITED, Q_FIFO) != 0)
+    if (rt_queue_create(&priv->mailbox_logging, "Moniroring queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO) != 0)
     {
         rt_printf("Could not create the audio queue\n");
         return;
@@ -105,17 +105,16 @@ void treatment_task_t_lol(void *cookie)
                     }
                 }
 
-                double *log = rt_queue_alloc(&priv->mailbox_logging, 2 * sizeof(double));
-                if (log == NULL)
+                message_logging_t *message = rt_queue_alloc(&priv->mailbox_logging, sizeof(message_logging_t));
+                if (message == NULL)
                 {
                     rt_printf("Could not allocate memory for the frequency\n");
                     break;
                 }
-                // Calculate the frequency
-                log[0] = ((double)max_index * (double)SAMPLING) / (double)FFT_BUFFER_SIZE_LEFT_CANAL;
                 current_time = rt_timer_read();
-                log[1] = (double)(current_time - last_time) / (double)1000000;
-                rt_queue_send(&priv->mailbox_logging, log, 2 * sizeof(double), Q_NORMAL);
+                message->processing_time = current_time - last_time;
+                message->principal_freq = ((double)max_index * (double)SAMPLING) / (double)FFT_BUFFER_SIZE_LEFT_CANAL;
+                rt_queue_send(&priv->mailbox_logging, message, sizeof(message_logging_t), Q_NORMAL);
                 max_power = 0;
                 max_index = 0;
             }
