@@ -418,8 +418,11 @@ Avec ` C_i ` le temps d'exécution de la tâche i, ` P_i ` la période de la tâ
 
 = Conclusion
 
-
-
+Nous pouvons voir qu'il est impossible de respecter 15 fps pour la video. 
+Les algorithmes de traitement que nous utilisons sont lourd et peu optimisé.
+L'utilisation d'un tel processeur n'est pas le plus optimal. Pour respecter la contrainte ainsi que d'avoir plus d'image par seconde
+il pourrait être plus efficace d'utiliser une FPGA ou un hardware spécialisé
+dans ce genre de traitement. Pareil pour l'audio, un dsp serait plus pertinent car il a un processeur spécialisé pour ce genre de tâche et nous permettrait de meilleur performance.
 
 
 ////////////////////////////////////////////////////////////////
