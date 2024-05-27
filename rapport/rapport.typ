@@ -132,6 +132,15 @@ La tache s'exécute périodiquement toutes les 1/10s (10Hz).
 
 ```
 --------------------------summary1.c---------------------------
+  Total of 46 values 
+    Minimum  = 0.309000 (position = 42) 
+    Maximum  = 0.589000 (position = 3) 
+    Sum      = 20.368000 
+    Mean     = 0.442783 
+    Variance = 0.008302 
+    Std Dev  = 0.091117 
+    CoV      = 0.205784 
+---------------------------------------------------------------
 
 ```
 
@@ -162,34 +171,41 @@ Total of 56 values
 ---------------------------------------------------------------
 ```
 
+On observe une grosse difference entre le min et le max mais ceci est facilement explicable par notre façon de gérer le buffer.
+Nous lisons les données envoyée depuis le microphone et nous les envoyons directement a la tâche de traitement qui elle va s'occuper d'agréger
+les données ensembles. Une fois que la tache traitement aura suffisemment de données elle pourra commencer le traitement. Pendant le traitement 
+elle ne pourra pas lire tout de suite les messages envoyé par la tâche d'acquisition. Cela va donc créer du délai sur la methode `rt_queue_send`
+
 === Traitement
 
 ```
 --------------------------summary1.c---------------------------
- Total of 45 values 
-    Minimum  = 53.604990 (position = 0) 
-    Maximum  = 55.999000 (position = 7) 
-    Sum      = 2481.939040 
-    Mean     = 55.154201 
-    Variance = 0.127928 
-    Std Dev  = 0.357670 
-    CoV      = 0.006485 
+Total of 44 values 
+    Minimum  = 14.102360 (position = 7) 
+    Maximum  = 14.947300 (position = 23) 
+    Sum      = 640.400260 
+    Mean     = 14.554551 
+    Variance = 0.083397 
+    Std Dev  = 0.288785 
+    CoV      = 0.019842 
 ---------------------------------------------------------------
+
 ```
 
 === Affichage
 
 ```
 --------------------------summary1.c---------------------------
-Total of 45 values 
-    Minimum  = 52.120080 (position = 0) 
-    Maximum  = 55.914000 (position = 34) 
-    Sum      = 2480.808050 
-    Mean     = 55.129068 
-    Variance = 0.275130 
-    Std Dev  = 0.524528 
-    CoV      = 0.009515 
+  Total of 45 values 
+    Minimum  = 0.205500 (position = 39) 
+    Maximum  = 0.376600 (position = 25) 
+    Sum      = 12.995200 
+    Mean     = 0.288782 
+    Variance = 0.001424 
+    Std Dev  = 0.037731 
+    CoV      = 0.130654 
 ---------------------------------------------------------------
+
 ```
 
 = Tâche vidéo
