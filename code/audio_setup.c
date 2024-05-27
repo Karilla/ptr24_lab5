@@ -25,7 +25,7 @@ void monitoring_task(void *cookie)
     {
         rt_queue_read(&priv->mailbox_logging, &message, sizeof(message_logging_t), TM_INFINITE);
 
-        rt_printf("Audio task execution time : %d Hz\n", message.processing_time);
+        rt_printf("Audio task execution time : %d \n", message.processing_time);
         rt_printf("FFT result : %d Hz\n\n", message.principal_freq);
     }
 
@@ -63,9 +63,9 @@ void treatment_task_t_lol(void *cookie)
 
     while (priv->ctl->running)
     {
-
+        rt_printf("On attends lol\n");
         rt_queue_read(&priv->mailbox_treatment, &message, sizeof(message_treatment_t), TM_INFINITE);
-
+        rt_printf("On attends mais c'est fini\n");
         memcpy(x, message.samples_buf, FFT_BUFFER_SIZE * sizeof(data_t)); // Copy the data to the buffer
 
         RTIME start = rt_timer_read();
@@ -94,7 +94,9 @@ void treatment_task_t_lol(void *cookie)
 
         rt_queue_send(&priv->mailbox_logging, &loggin_message, sizeof(message_logging_t), Q_NORMAL);
     }
-
+    rt_heap_free(priv->heap, x);
+    rt_heap_free(priv->heap, buf);
+    rt_heap_free(priv->heap, power);
     rt_printf("Terminate treatment task\n");
 }
 
@@ -168,6 +170,9 @@ void acquisition_task(void *cookie)
         {
             rt_event_wait(priv->ctl->control_event, AUDIO_RUNNING, NULL, EV_ANY, TM_INFINITE);
         }
+#if MEASURE
+        previous = rt_timer_read();
+#endif
         // Get the data from the buffer
         ssize_t read = read_samples(priv->samples_buf, FIFO_SIZE * NB_CHAN);
         write_samples(priv->samples_buf, read);
@@ -196,5 +201,7 @@ void acquisition_task(void *cookie)
     }
     rt_heap_free(priv->heap, fft_buffer);
     // rt_queue_free(mailbox_treatment, message);
+    rt_task_join(&treatment_task_arg.sub_task);
+    rt_task_join(&monitoring_task_args.sub_task);
     rt_printf("Terminating acquisition task\n");
 }

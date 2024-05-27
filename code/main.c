@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
     // Waiting for the end of the program (coming from ctrl + c)
     rt_task_join(&ioctl_ctl_rt_task);
     rt_task_join(&priv_audio.acquisition_rt_task);
-    // rt_task_join(&priv_video.rt_task);
+    rt_task_join(&priv_video.rt_task);
 
     // Free all resources of the video/audio/ioctl
     clear_ioctl();
