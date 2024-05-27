@@ -151,21 +151,45 @@ Voici les temps d'exécution de chaque tâche. La mesure à été effectuée sur
 
 ```
 --------------------------summary1.c---------------------------
-
+Total of 56 values 
+    Minimum  = 0.153250 (position = 0) 
+    Maximum  = 14.412900 (position = 36) 
+    Sum      = 165.210700 
+    Mean     = 2.950191 
+    Variance = 7.776338 
+    Std Dev  = 2.788609 
+    CoV      = 0.945230 
+---------------------------------------------------------------
 ```
 
 === Traitement
 
 ```
 --------------------------summary1.c---------------------------
-
+ Total of 45 values 
+    Minimum  = 53.604990 (position = 0) 
+    Maximum  = 55.999000 (position = 7) 
+    Sum      = 2481.939040 
+    Mean     = 55.154201 
+    Variance = 0.127928 
+    Std Dev  = 0.357670 
+    CoV      = 0.006485 
+---------------------------------------------------------------
 ```
 
 === Affichage
 
 ```
 --------------------------summary1.c---------------------------
-
+Total of 45 values 
+    Minimum  = 52.120080 (position = 0) 
+    Maximum  = 55.914000 (position = 34) 
+    Sum      = 2480.808050 
+    Mean     = 55.129068 
+    Variance = 0.275130 
+    Std Dev  = 0.524528 
+    CoV      = 0.009515 
+---------------------------------------------------------------
 ```
 
 = Tâche vidéo
