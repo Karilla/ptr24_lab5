@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Author: A.Gabriel Catel Torres
+ * Author: A.Gabriel Catel Torres, Delay Benoit, Forestier Robin
  *
  * Version: 1.0
  *

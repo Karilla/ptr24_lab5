@@ -18,20 +18,19 @@ typedef double complex cplx;
 
 void monitoring_task(void *cookie)
 {
-    rt_printf("On monitore ou quoi ?\n");
     Priv_audio_args_t *priv = (Priv_audio_args_t *)cookie;
-
     message_logging_t message;
-
+    RTIME now, previous;
+    now = rt_timer_read();
     while (priv->ctl->running)
     {
         rt_queue_read(&priv->mailbox_logging, &message, sizeof(message_logging_t), TM_INFINITE);
-
-        rt_printf("Audio task execution time : %f \n", message.processing_time);
+        previous = rt_timer_read();
+        rt_printf("Audio task execution time : %f \n", (double)message.processing_time);
         rt_printf("FFT result : %f Hz\n\n", message.principal_freq);
         rt_queue_free(&priv->mailbox_logging, &message);
+        now = rt_timer_read();
     }
-
     rt_printf("Terminate monitoring task\n");
 }
 
@@ -51,40 +50,37 @@ void treatment_task_t_lol(void *cookie)
      */
 
     Priv_audio_args_t *priv = (Priv_audio_args_t *)cookie;
-
     cplx *out = (cplx *)malloc(sizeof(cplx) * FFT_BUFFER_SIZE_LEFT_CANAL);
     data_t *x = (data_t *)malloc(sizeof(data_t) * FFT_BUFFER_SIZE); // NOTE : discrete time signal sent by the acquisition task
     cplx *buf = (cplx *)malloc(sizeof(cplx) * FFT_BUFFER_SIZE_LEFT_CANAL);
     double *power = (double *)malloc(sizeof(double) * FFT_BUFFER_SIZE_LEFT_CANAL);
-    if (rt_queue_create(&priv->mailbox_logging, "Moniroring queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO) != 0)
+    if (rt_queue_create(&priv->mailbox_logging, "Monitoring queue", sizeof(message_logging_t), Q_UNLIMITED, Q_FIFO) != 0)
     {
         rt_printf("Could not create the audio queue\n");
         return;
     }
     data_t *message;
-    RTIME current_time;
+    RTIME now, previous;
     int bytes_received, size = 0;
+    now = rt_timer_read();
     while (priv->ctl->running)
     {
         if (priv->ctl->audio_running)
         {
-            rt_event_wait(priv->ctl->control_event, AUDIO_RUNNING, NULL, EV_ANY, TM_INFINITE);
-
+            // rt_event_wait(priv->ctl->control_event, AUDIO_RUNNING, NULL, EV_ANY, TM_INFINITE);
+            previous = now;
             if ((bytes_received = rt_queue_receive(&priv->mailbox_treatment, (void **)&message, TM_INFINITE)) <= 0)
             {
                 rt_printf("Could not receive data from the audio queue\n");
             }
-            // rt_printf("data received and nv byte = %d\n", bytes_received); // ok
             memcpy(x + size, message, bytes_received);
             rt_queue_free(&priv->mailbox_treatment, message);
             size += bytes_received;
             bytes_received = 0;
             if (size >= FFT_BUFFER_SIZE)
             {
+                previous = rt_timer_read();
                 size = 0;
-                // rt_printf("Processing data\n");
-                RTIME last_time = rt_timer_read();
-                /* EXAMPLE using the fft function : */
                 for (size_t i = 0; i < FFT_BUFFER_SIZE_LEFT_CANAL; i++)
                 {
                     buf[i] = x[i * 2] + 0 * I; // Only take left channel !!!
@@ -111,8 +107,9 @@ void treatment_task_t_lol(void *cookie)
                     rt_printf("Could not allocate memory for the frequency\n");
                     break;
                 }
-                current_time = rt_timer_read();
-                message->processing_time = current_time - last_time;
+                now = rt_timer_read();
+
+                message->processing_time = now - previous;
                 message->principal_freq = ((double)max_index * (double)SAMPLING) / (double)FFT_BUFFER_SIZE_LEFT_CANAL;
                 rt_queue_send(&priv->mailbox_logging, message, sizeof(message_logging_t), Q_NORMAL);
                 max_power = 0;
@@ -120,6 +117,11 @@ void treatment_task_t_lol(void *cookie)
             }
         }
     }
+    free(out);
+    free(x);
+    free(buf);
+    free(power);
+    rt_queue_delete(&priv->mailbox_logging);
     rt_printf("Terminate treatment task\n");
 }
 
@@ -132,45 +134,36 @@ void acquisition_task(void *cookie)
         rt_printf("Error creating mailbox treatment\n");
         exit(EXIT_FAILURE);
     }
+
     int err;
     // Calculate the minimum frequency of the task
     uint32_t audio_task_freq = (SAMPLING * sizeof(data_t)) / (FIFO_SIZE);
     // Calculate the period of the task with a margin to ensure not any data is lost
     uint64_t period_in_ns = S_IN_NS / (audio_task_freq + PERIOD_MARGIN);
-    uint16_t *fft_buffer = (uint16_t *)malloc(FFT_BUFFER_SIZE);
-    // rt_heap_alloc(priv->heap, FFT_BUFFER_SIZE * sizeof(uint16_t), TM_INFINITE, (void **)&fft_buffer);
-
-    uint32_t nb_byte_readen = 0;
 
     if ((err = rt_task_set_periodic(NULL, TM_NOW, period_in_ns)) < 0)
     {
         rt_printf("Could not set period of acquisition task\n");
         return;
     }
-
+    RTIME previous, now;
     data_t *message;
     while (priv->ctl->running)
     {
+
         // Check if task is running before waiting to avoid going into waiting state
         message = rt_queue_alloc(&priv->mailbox_treatment, FIFO_SIZE * NB_CHAN);
-        if (message == NULL)
-        {
-            // rt_printf("Could not allocate memory for the audio queue\n");
-            // break;
-        }
         // Get the data from the buffer
         ssize_t read = read_samples(message, FIFO_SIZE * NB_CHAN);
         // write_samples(message, read);
-        int err;
         if (read)
         {
             // Write the data to the audio output
-            err = rt_queue_send(&priv->mailbox_treatment, message, read, Q_NORMAL); // mettre en Q_NORMAL
+            rt_queue_send(&priv->mailbox_treatment, message, read, Q_NORMAL); // mettre en Q_NORMAL
         }
 
         rt_task_wait_period(NULL);
     }
-    rt_heap_free(priv->heap, fft_buffer);
-    // rt_queue_free(mailbox_treatment, message);
+    rt_queue_delete(&priv->mailbox_treatment);
     rt_printf("Terminating acquisition task\n");
 }

@@ -39,9 +39,9 @@ void convolution_task(void *cookie)
         grayscale_to_rgba(conv_data, result);
 
         memcpy(get_video_buffer(), result->data, VIDEO_RESOLUTION);
-        
+
         rt_event_clear(priv->video_task_event, CONVOLUTION_RUNNING, NULL);
-        //rt_event_signal(priv->video_task_event, CONVOLUTION_STOP);
+        // rt_event_signal(priv->video_task_event, CONVOLUTION_STOP);
     }
 
     free(conv_data);
@@ -73,7 +73,7 @@ void greyscale_task(void *cookie)
         rt_event_clear(priv->video_task_event, GREYSCALE_RUNNING, NULL);
         rt_event_signal(priv->video_task_event, GREYSCALE_STOP);
     }
-    
+
     free(greyscale_img->data);
 }
 
@@ -91,32 +91,30 @@ void video_task(void *cookie)
         exit(EXIT_FAILURE);
     }
 
-    
     // Create the greyscale tasks
     Priv_video_args_t greyscale_task_args;
     greyscale_task_args.ctl = priv->ctl;
     greyscale_task_args.img = priv->img;
     greyscale_task_args.video_task_event = &priv->video_task_event;
 
-   
     if (rt_task_spawn(&greyscale_task_args.rt_task, "Greyscale Task", 0, VIDEO_TASK_PRIORITY, T_JOINABLE, greyscale_task, &greyscale_task_args))
     {
         rt_printf("Error while launching greyscale task\n");
         exit(EXIT_FAILURE);
     }
-    
+
     // Create the convolution tasks
     Priv_video_args_t convolution_task_args;
     convolution_task_args.ctl = priv->ctl;
     convolution_task_args.img = priv->img;
     convolution_task_args.video_task_event = &priv->video_task_event;
-    
+
     if (rt_task_spawn(&convolution_task_args.rt_task, "Convolution Task", 0, VIDEO_TASK_PRIORITY, T_JOINABLE, convolution_task, &convolution_task_args))
     {
         rt_printf("Error while launching convolution task\n");
         exit(EXIT_FAILURE);
     }
-    
+
     // Set the period of the video task
     if ((err = rt_task_set_periodic(NULL, TM_NOW, rt_timer_ns2ticks(period_in_ns))) < 0)
     {
@@ -148,8 +146,6 @@ void video_task(void *cookie)
             rt_printf("Video Start\n");
         }
 
-        // Read the frame from the file
-        //err = read(fd, get_video_buffer(), VIDEO_RESOLUTION);
         err = read(fd, priv->img.data, VIDEO_RESOLUTION);
 
         if (err < 0)
@@ -174,19 +170,18 @@ void video_task(void *cookie)
         {
             // If greyscale is activated, activate the greyscale task
             rt_event_signal(greyscale_task_args.video_task_event, GREYSCALE_RUNNING);
-        } 
+        }
         else
         {
             // Show the video without any treatment
             memcpy(get_video_buffer(), priv->img.data, VIDEO_RESOLUTION);
         }
 
-
 #if MEASURE
         now = rt_timer_read();
         rt_printf("%ld.%04ld\n",
-		(long)(now - previous) / 1000000,
-		(long)(now - previous) % 1000000);
+                  (long)(now - previous) / 1000000,
+                  (long)(now - previous) % 1000000);
         previous = now;
 #endif
 

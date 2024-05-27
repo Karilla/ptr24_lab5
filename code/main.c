@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Author: A.Gabriel Catel Torres
+ * Author: A.Gabriel Catel Torres, Delay Benoit, Forestier Robin
  *
  * Version: 1.0
  *
@@ -46,9 +46,10 @@ void ioctl_ctl_task(void *cookie)
     Ctl_data_t *priv = (Ctl_data_t *)cookie;
 
     rt_task_set_periodic(NULL, TM_NOW, CTL_TASK_PERIOD);
-
+    RTIME previous, now;
     while (priv->running)
     {
+        previous = rt_timer_read();
         unsigned keys = read_key(MMAP);
         unsigned switch_value = read_switch(MMAP);
 
@@ -105,6 +106,10 @@ void ioctl_ctl_task(void *cookie)
         {
             priv->running = false;
         }
+        now = rt_timer_read();
+        rt_printf("%ld.%04ld\n",
+                  (long)(now - previous) / 1000000,
+                  (long)(now - previous) % 1000000);
         rt_task_wait_period(NULL);
     }
 }
@@ -141,7 +146,7 @@ int main(int argc, char *argv[])
 
     // Create the IOCTL control task
     RT_TASK ioctl_ctl_rt_task;
-    if (rt_task_spawn(&ioctl_ctl_rt_task, "program control task", 0,
+    if (rt_task_spawn(&ioctl_ctl_rt_task, "IOCTL Task", 0,
                       CTL_TASK_PRIORITY, T_JOINABLE,
                       ioctl_ctl_task, &ctl) != 0)
     {
@@ -149,10 +154,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     printf("Launched control task\n");
-
-    // Heap Setup
-    RT_HEAP heap_audio;
-    // rt_heap_create(&heap_audio, "Heap Audio", 20480 /*20 ko*/, H_PRIO);
 
     // Audio setup
     if (init_audio())
@@ -167,7 +168,7 @@ int main(int argc, char *argv[])
     priv_audio.ctl = &ctl;
 
     // Create the audio acquisition task
-    if (rt_task_spawn(&priv_audio.task_acq, "audio task", 0,
+    if (rt_task_spawn(&priv_audio.task_acq, "Acquistion Audio Task", 0,
                       50, T_JOINABLE,
                       acquisition_task, &priv_audio) != 0)
     {
@@ -175,13 +176,13 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (rt_task_spawn(&priv_audio.task_treat, "Treatment Task", 0, 50, T_JOINABLE, treatment_task_t_lol, &priv_audio))
+    if (rt_task_spawn(&priv_audio.task_treat, "Treatment Audio Task", 0, 50, T_JOINABLE, treatment_task_t_lol, &priv_audio))
     {
         rt_printf("Error while launching treatment task\n");
         exit(EXIT_FAILURE);
     }
 
-    if (rt_task_spawn(&priv_audio.task_monitor, "Monitoring Task", 0, 50, T_JOINABLE, monitoring_task, &priv_audio))
+    if (rt_task_spawn(&priv_audio.task_monitor, "Monitoring Audio Task", 0, 50, T_JOINABLE, monitoring_task, &priv_audio))
     {
         rt_printf("Error while launching monitoring task\n");
         exit(EXIT_FAILURE);
@@ -195,33 +196,34 @@ int main(int argc, char *argv[])
         perror("Could not init the video...\n");
         return ret;
     }
-    /*
-        // Init private data used for the video tasks
-        Priv_video_args_t priv_video;
-        priv_video.img.width = WIDTH;
-        priv_video.img.height = HEIGHT;
-        priv_video.img.components = 4;
-        priv_video.img.data = (uint8_t *)malloc(HEIGHT * WIDTH * BYTES_PER_PIXEL);
-        priv_video.ctl = &ctl;
+    // Init private data used for the video tasks
+    Priv_video_args_t priv_video;
+    priv_video.img.width = WIDTH;
+    priv_video.img.height = HEIGHT;
+    priv_video.img.components = 4;
+    priv_video.img.data = (uint8_t *)malloc(HEIGHT * WIDTH * BYTES_PER_PIXEL);
+    priv_video.ctl = &ctl;
 
-        // Create the video acquisition task
-        if (rt_task_spawn(&priv_video.rt_task, "video task", 0, VIDEO_ACK_TASK_PRIORITY,
-                          T_JOINABLE, video_task, &priv_video) != 0)
-        {
-            perror("Error while starting video_function");
-            exit(EXIT_FAILURE);
-        }
+    // Create the video acquisition task
+    if (rt_task_spawn(&priv_video.rt_task, "video task", 0, VIDEO_ACK_TASK_PRIORITY,
+                      T_JOINABLE, video_task, &priv_video) != 0)
+    {
+        perror("Error while starting video_function");
+        exit(EXIT_FAILURE);
+    }
 
-        printf("Launched video acquisition task\n");
+    printf("Launched video acquisition task\n");
 
-        printf("----------------------------------\n");
-        printf("Press KEY0 to exit the program\n");
-        printf("----------------------------------\n");
-    */
+    printf("----------------------------------\n");
+    printf("Press KEY0 to exit the program\n");
+    printf("----------------------------------\n");
+
     // Waiting for the end of the program (coming from ctrl + c)
     rt_task_join(&ioctl_ctl_rt_task);
     rt_task_join(&priv_audio.task_acq);
-    // rt_task_join(&priv_video.rt_task);
+    rt_task_join(&priv_audio.task_treat);
+    rt_task_join(&priv_audio.task_monitor);
+    rt_task_join(&priv_video.rt_task);
 
     // Free all resources of the video/audio/ioctl
     clear_ioctl();
@@ -230,9 +232,7 @@ int main(int argc, char *argv[])
 
     // Free everything else
     free(priv_audio.samples_buf);
-    // free(priv_video.img.data);
-
-    rt_heap_delete(&heap_audio);
+    free(priv_video.img.data);
 
     munlockall();
 
