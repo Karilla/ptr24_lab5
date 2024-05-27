@@ -195,29 +195,29 @@ int main(int argc, char *argv[])
         perror("Could not init the video...\n");
         return ret;
     }
+    /*
+        // Init private data used for the video tasks
+        Priv_video_args_t priv_video;
+        priv_video.img.width = WIDTH;
+        priv_video.img.height = HEIGHT;
+        priv_video.img.components = 4;
+        priv_video.img.data = (uint8_t *)malloc(HEIGHT * WIDTH * BYTES_PER_PIXEL);
+        priv_video.ctl = &ctl;
 
-    // Init private data used for the video tasks
-    Priv_video_args_t priv_video;
-    priv_video.img.width = WIDTH;
-    priv_video.img.height = HEIGHT;
-    priv_video.img.components = 4;
-    priv_video.img.data = (uint8_t *)malloc(HEIGHT * WIDTH * BYTES_PER_PIXEL);
-    priv_video.ctl = &ctl;
+        // Create the video acquisition task
+        if (rt_task_spawn(&priv_video.rt_task, "video task", 0, VIDEO_ACK_TASK_PRIORITY,
+                          T_JOINABLE, video_task, &priv_video) != 0)
+        {
+            perror("Error while starting video_function");
+            exit(EXIT_FAILURE);
+        }
 
-    // Create the video acquisition task
-    if (rt_task_spawn(&priv_video.rt_task, "video task", 0, VIDEO_ACK_TASK_PRIORITY,
-                      T_JOINABLE, video_task, &priv_video) != 0)
-    {
-        perror("Error while starting video_function");
-        exit(EXIT_FAILURE);
-    }
+        printf("Launched video acquisition task\n");
 
-    printf("Launched video acquisition task\n");
-
-    printf("----------------------------------\n");
-    printf("Press KEY0 to exit the program\n");
-    printf("----------------------------------\n");
-
+        printf("----------------------------------\n");
+        printf("Press KEY0 to exit the program\n");
+        printf("----------------------------------\n");
+    */
     // Waiting for the end of the program (coming from ctrl + c)
     rt_task_join(&ioctl_ctl_rt_task);
     rt_task_join(&priv_audio.task_acq);
