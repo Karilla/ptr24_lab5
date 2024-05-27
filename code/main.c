@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 
     // Heap Setup
     RT_HEAP heap_audio;
-    rt_heap_create(&heap_audio, "Heap Audio", 20480 /*20 ko*/, H_PRIO);
+    // rt_heap_create(&heap_audio, "Heap Audio", 20480 /*20 ko*/, H_PRIO);
 
     // Audio setup
     if (init_audio())
@@ -163,16 +163,27 @@ int main(int argc, char *argv[])
 
     // Init private data used for the audio tasks
     Priv_audio_args_t priv_audio;
-    priv_audio.samples_buf = (data_t *)malloc(FIFO_SIZE * NB_CHAN);
+    priv_audio.samples_buf = (data_t *)malloc(FIFO_SIZE * NB_CHAN * sizeof(data_t));
     priv_audio.ctl = &ctl;
-    priv_audio.heap = &heap_audio;
 
     // Create the audio acquisition task
-    if (rt_task_spawn(&priv_audio.acquisition_rt_task, "audio task", 0,
-                      AUDIO_ACK_TASK_PRIORITY, T_JOINABLE,
+    if (rt_task_spawn(&priv_audio.task_acq, "audio task", 0,
+                      50, T_JOINABLE,
                       acquisition_task, &priv_audio) != 0)
     {
         perror("Error while starting treatment task\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (rt_task_spawn(&priv_audio.task_treat, "Treatment Task", 0, 50, T_JOINABLE, treatment_task_t_lol, &priv_audio))
+    {
+        rt_printf("Error while launching treatment task\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (rt_task_spawn(&priv_audio.task_monitor, "Monitoring Task", 0, 50, T_JOINABLE, monitoring_task, &priv_audio))
+    {
+        rt_printf("Error while launching monitoring task\n");
         exit(EXIT_FAILURE);
     }
     printf("Launched audio acquisition task\n");
@@ -200,6 +211,7 @@ int main(int argc, char *argv[])
         perror("Error while starting video_function");
         exit(EXIT_FAILURE);
     }
+
     printf("Launched video acquisition task\n");
 
     printf("----------------------------------\n");
@@ -208,8 +220,8 @@ int main(int argc, char *argv[])
 
     // Waiting for the end of the program (coming from ctrl + c)
     rt_task_join(&ioctl_ctl_rt_task);
-    rt_task_join(&priv_audio.acquisition_rt_task);
-    rt_task_join(&priv_video.rt_task);
+    rt_task_join(&priv_audio.task_acq);
+    // rt_task_join(&priv_video.rt_task);
 
     // Free all resources of the video/audio/ioctl
     clear_ioctl();
@@ -218,7 +230,7 @@ int main(int argc, char *argv[])
 
     // Free everything else
     free(priv_audio.samples_buf);
-    free(priv_video.img.data);
+    // free(priv_video.img.data);
 
     rt_heap_delete(&heap_audio);
 

@@ -40,31 +40,14 @@
 typedef struct Priv_audio_args
 {
     Ctl_data_t *ctl;
-    RT_TASK acquisition_rt_task;
+    RT_TASK task_acq;
+    RT_TASK task_treat;
+    RT_TASK task_monitor;
     data_t *samples_buf;
-    RT_HEAP *heap;
-} Priv_audio_args_t;
-
-typedef struct Priv_audio_treatment_args
-{
-    Ctl_data_t *ctl;
-    RT_TASK sub_task;
     RT_HEAP *heap;
     RT_QUEUE mailbox_logging;
     RT_QUEUE mailbox_treatment;
-} Priv_audio_treatment_args_t;
-
-typedef struct Priv_audio_logging_args
-{
-    Ctl_data_t *ctl;
-    RT_TASK sub_task;
-    RT_QUEUE mailbox_logging;
-} Priv_audio_logging_args_t;
-
-typedef struct message_treatment
-{
-    data_t *samples_buf;
-} message_treatment_t;
+} Priv_audio_args_t;
 
 typedef struct message_logging
 {
@@ -79,5 +62,9 @@ typedef struct message_logging
  * \param cookie pointer to private data. Can be anything
  */
 void acquisition_task(void *cookie);
+
+void treatment_task_t_lol(void *cookie);
+
+void monitoring_task(void *cookie);
 
 #endif // AUDIO_SETUP_H
