@@ -151,8 +151,8 @@ int main(int argc, char *argv[])
     printf("Launched control task\n");
 
     // Heap Setup
-    RT_HEAP *heap_audio;
-    rt_heap_create(heap_audio, "Heap Audio", 20480 /*20 ko*/, H_PRIO);
+    RT_HEAP heap_audio;
+    rt_heap_create(&heap_audio, "Heap Audio", 20480 /*20 ko*/, H_PRIO);
 
     // Audio setup
     if (init_audio())
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     Priv_audio_args_t priv_audio;
     priv_audio.samples_buf = (data_t *)malloc(FIFO_SIZE * NB_CHAN);
     priv_audio.ctl = &ctl;
-    priv_audio.heap = heap_audio;
+    priv_audio.heap = &heap_audio;
 
     // Create the audio acquisition task
     if (rt_task_spawn(&priv_audio.acquisition_rt_task, "audio task", 0,
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
     free(priv_audio.samples_buf);
     free(priv_video.img.data);
 
-    rt_heap_delete(heap_audio);
+    rt_heap_delete(&heap_audio);
 
     munlockall();
 
