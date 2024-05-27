@@ -45,17 +45,25 @@ typedef struct Priv_audio_args
     RT_HEAP *heap;
 } Priv_audio_args_t;
 
-typedef struct Priv_audio_sub_args
+typedef struct Priv_audio_treatment_args
 {
     Ctl_data_t *ctl;
     RT_TASK sub_task;
-    RT_QUEUE mailBox;
-} Priv_audio_sub_args_t;
+    RT_HEAP *heap;
+    RT_QUEUE mailbox_logging;
+    RT_QUEUE mailbox_treatment;
+} Priv_audio_treatment_args_t;
+
+typedef struct Priv_audio_logging_args
+{
+    Ctl_data_t *ctl;
+    RT_TASK sub_task;
+    RT_QUEUE mailbox_logging;
+} Priv_audio_logging_args_t;
 
 typedef struct message_treatment
 {
     data_t *samples_buf;
-    RT_QUEUE mailbox_logging;
 } message_treatment_t;
 
 typedef struct message_logging

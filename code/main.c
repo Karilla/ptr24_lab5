@@ -20,6 +20,7 @@
 #include <cobalt/stdio.h>
 
 #include <alchemy/task.h>
+#include <alchemy/heap.h>
 
 #include "audio_utils.h"
 #include "video_utils.h"
@@ -61,6 +62,7 @@ void ioctl_ctl_task(void *cookie)
         {
             // descativation audio
             priv->audio_running = false;
+            rt_printf("Bye running\n");
             rt_event_clear(priv->control_event, AUDIO_RUNNING, NULL);
         }
 
@@ -124,13 +126,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    RT_HEAP audio_heap;
-    if (rt_heap_create(&audio_heap, "Audio Heap", 100000, H_PRIO) != 0)
-    {
-        perror("Error while creating heap...\n");
-        exit(EXIT_FAILURE);
-    }
-
     RT_EVENT event;
 
     if (rt_event_create(&event, "Control Event", 0, EV_PRIO))
@@ -153,7 +148,11 @@ int main(int argc, char *argv[])
         perror("Error while starting acquisition_task");
         exit(EXIT_FAILURE);
     }
-    printf("Launched audio acquisition task\n");
+    printf("Launched control task\n");
+
+    // Heap Setup
+    RT_HEAP *heap_audio;
+    rt_heap_create(heap_audio, "Heap Audio", 20480 /*20 ko*/, H_PRIO);
 
     // Audio setup
     if (init_audio())
@@ -166,7 +165,7 @@ int main(int argc, char *argv[])
     Priv_audio_args_t priv_audio;
     priv_audio.samples_buf = (data_t *)malloc(FIFO_SIZE * NB_CHAN);
     priv_audio.ctl = &ctl;
-    priv.heap = &audio_heap;
+    priv_audio.heap = heap_audio;
 
     // Create the audio acquisition task
     if (rt_task_spawn(&priv_audio.acquisition_rt_task, "audio task", 0,
@@ -208,20 +207,20 @@ int main(int argc, char *argv[])
     printf("----------------------------------\n");
 
     // Waiting for the end of the program (coming from ctrl + c)
-    rt_task_join(&priv_audio.acquisition_rt_task);
-    rt_task_join(&priv_video.rt_task);
     rt_task_join(&ioctl_ctl_rt_task);
+    rt_task_join(&priv_audio.acquisition_rt_task);
+    // rt_task_join(&priv_video.rt_task);
 
     // Free all resources of the video/audio/ioctl
     clear_ioctl();
     clear_audio();
     clear_video();
 
-    rt_heap_delete(&audio_heap);
-
     // Free everything else
     free(priv_audio.samples_buf);
-    free(priv_video.buffer);
+    free(priv_video.img.data);
+
+    rt_heap_delete(heap_audio);
 
     munlockall();
 
