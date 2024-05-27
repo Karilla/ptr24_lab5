@@ -152,6 +152,8 @@ La tâche audio à pour but de récupérer un flux audio via un micro et de le c
 
 Elle est composée de trois sous tâche : l'aquisition du flux audio, le traitement du flux audio (FFT) et l'affichage du temps d'exécution et de la fréquence dominante de la FFT.
 
+La tâche audio s'exécute périodiquement toutes les 5,1 ms.
+
 == Mesures
 
 Voici les temps d'exécution de chaque tâche. La mesure à été effectuée sur un système non chargé et seul la tâche audio et ioctl était active.
@@ -189,8 +191,9 @@ Total of 44 values
     Std Dev  = 0.288785 
     CoV      = 0.019842 
 ---------------------------------------------------------------
-
 ```
+
+Le traitement des données est assez couteux en temps. Le calcule de la FFT est une opération demandant beaucoup de calculs. Nous sommes en dessous de la limite de 5.1ms pour une lecture à 48kHz.
 
 === Affichage
 
@@ -205,8 +208,9 @@ Total of 44 values
     Std Dev  = 0.037731 
     CoV      = 0.130654 
 ---------------------------------------------------------------
-
 ```
+
+Sans surprise, l'affichage des données est très rapide. 
 
 = Tâche vidéo
 
@@ -405,15 +409,86 @@ Avec ` C_i ` le temps d'exécution de la tâche i, ` P_i ` la période de la tâ
 
 == calculs
 
+Reprenons les temps d'exécution de chaque tâche.
 
+#align(center,
+table(
+  columns: (12em, 12em),
+  inset: 7pt,
+  stroke: none,
+  align: center,
+  table.header(
+    [*Tâches*], [*Temp d'exécution*]
+  ),
+  [IOctl],
+  [0.44],
+  [Aquisition audio],
+  [2.95],
+  [Traitement],
+  [14.6],
+  [Affichage],
+  [0.3],
+  [Aquisition vidéo],
+  [17.5],
+  [Greyscale],
+  [27.6],
+  [Convolution],
+  [110.7]
+))
 
-== Rate Monotonic
+Et voici la période de chaque tâche.
 
-// Quelle est la charge du CPU retournée par la commande htop ?
+- audio : 5.1 ms
+- video : 66,6 ms
+- ioctl : 100 ms
 
-// Votre système est-il capable de gérer les différents traitements vidéo de manière ordonnée ?
-  // Si oui, quel est le framerate vidéo maximal auquel votre système continue de fonctionner correctement ?
-  // Si non, dans quelle mesure devez-vous diminuer le framerate vidéo pour obtenir un système fonctionnel ?
+Testons si notre tâche audio est ordonnançable avec l’algorithme Rate Monotonic.
+
+$ U_"lub"_"RM" (2) = 2(2^(1/2) - 1) = 0.82 $
+
+$ U = 0.44 / 100 + (2.95 + 14.6 + 0.3) / 5.1 = 3.5 $
+
+La tâche audio n'est pas ordonnançable avec l’algorithme Rate Monotonic. 
+
+Testons si notre tâche vidéo est ordonnançable avec l’algorithme Rate Monotonic.
+
+$ U_"lub"_"RM" (2) = 2(2^(1/2) - 1) = 0.82 $
+
+Traitement uniquement :
+
+$ U = 0.44 / 100 + 17.5 / 66.6 = 0.26 $
+
+Traitement et greyscale :
+
+$ U = 0.44 / 100 + (17.5 + 27.6) / 66.6 = 0.68 $
+
+Traitement et convolution :
+
+$ U = 0.44 / 100 + (17.5 + 110.7) / 66.6 = 1.92 $
+
+La tâche vidéo est ordonnançable avec l’algorithme Rate Monotonic si elle est composée uniquement de la tâche de traitement ou de la tache greyscale.
+
+Pour que la tâche vidéo soit ordonnançable avec l’algorithme Rate Monotonic, il faudrait diminuer le framerate vidéo pour obtenir un système fonctionnel. Avec la tâche de convolution, le framerate maximal auquel notre système continue de fonctionner correctement est de `~` 6.3 fps.
+
+Testons si notre ensemble de tâches est ordonnançable avec l’algorithme Rate Monotonic.
+
+Calculons la borne supérieure de l'utilisation du processeur pour 3 tâches.
+
+$ U_"lub"_"RM" (3) = 3(2^(1/2) - 1) = 0.78 $
+
+Calculons l'utilisation du processeur pour 6 tâches.
+
+$ U = 0.44 / 100 + (2.95 + 14.6 + 0.3) / 5.1 + 17.5 / 66.6 = 3.77 $
+
+Nous avons donc ` U = 3.77 ` et ` U_lub_RM (6) = 0.78 `. Notre ensemble de tâches n'est pas ordonnançable avec l’algorithme Rate Monotonic. Et cela sans aucune modification de la vidéo.
+
+Notre système n'est pas capable de gérer les différents traitements vidéo de manière ordonnée. 
+
+Il faudrait diminuer le framerate vidéo pour obtenir un système fonctionnel. Mais si l'on calcule le framerate maximal auquel notre système continue de fonctionner correctement, on trouve :
+
+$ U = 0.44 / 100 + (2.95 + 14.6 + 0.3) / 5.1 + 17.5 / x = 2.49 $
+
+Mais ce système n'est pas solvable avec un x positif. Nous ne pouvons pas calculer le framerate maximal auquel notre système continue de fonctionner correctement.
 
 
 = Conclusion
