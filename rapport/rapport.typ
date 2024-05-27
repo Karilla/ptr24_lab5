@@ -1,23 +1,29 @@
 #import "@preview/cetz:0.2.2"
 
+// taille du texte et espacement
 #set text(size: 1.2em)
 #set block(spacing: 1.5em)
+
+// Justifie les paragraphes
+#set par(justify: true)
 
 // Aligne les images et figure au centre
 #set figure(numbering: none)
 #show figure: align.with(center)
 #show image: align.with(center)
 
-// Titre en gras
+// Titre & numérotation
+#set heading(numbering: "1.")
 #show heading: text.with(size: 1.3em, weight: "bold")
 #show heading: it => {
-  it.body
+  it
   v(0.7em)
 }
 
+
 // Header & Footer
 #set page(
-  margin: (top: 45pt, bottom: 32pt),
+  margin: (top: 65pt, bottom: 32pt),
 
   header: context {
     if counter(page).get().first() > 1 [
@@ -41,10 +47,24 @@
 )
 
 
+/////////////////////////////////////////////////
+//            Début du rapport                 //
+/////////////////////////////////////////////////
+
+
 // Titre du rapport
 #align(center + horizon, text(2em)[Laboratoire n° 5 : Traitement des données \ 
 						Robin Forestier - Benoît Delay])
 #v(1.5em)
+
+#pagebreak()
+
+// Table des matières
+#outline(
+  title: "Table des matières",
+  depth: 3,
+  indent: 1.5em,
+)
 
 #pagebreak()
 
@@ -100,9 +120,53 @@ Premièrement, nous avons mesuré le temps d'exécution de chaque tache séparé
 
 Pour cela nous avons utilisé les timer Xenomai, avec la fonction `rt_timer_read()`. Nous avons effectué `~` 50 mesures pour chaque tâche, et avons calculé la moyenne, la variance et l'écart type.
 
-= Tâche audio
+= Tâche ioctl
+
+La tâche ioctl à pour but de gérer les actions des switches et du bouton KEY0. Elle permet d'activer ou de désactiver les tâches audio et vidéo.
 
 == Mesures
+
+Voici les temps d'exécution de la tâche ioctl. La mesure à été effectuée sur un système non chargé et seul la tâche ioctl était active.
+
+La tache s'exécute périodiquement toutes les 1/10s (10Hz).
+
+```
+--------------------------summary1.c---------------------------
+
+```
+
+Cette tâche est très rapide, avec un temps d'exécution de `~`XXX ms. Elle ne devrait pas poser de problème pour l'ordonnancement des autres tâches.
+
+= Tâche audio
+
+La tâche audio à pour but de récupérer un flux audio via un micro et de le copier sur la sortie audio (casque) de la carte. Le taux d'échantillonage est de 48kHz.
+
+Elle est composée de trois sous tâche : l'aquisition du flux audio, le traitement du flux audio (FFT) et l'affichage du temps d'exécution et de la fréquence dominante de la FFT.
+
+== Mesures
+
+Voici les temps d'exécution de chaque tâche. La mesure à été effectuée sur un système non chargé et seul la tâche audio et ioctl était active.
+
+=== Aquisition
+
+```
+--------------------------summary1.c---------------------------
+
+```
+
+=== Traitement
+
+```
+--------------------------summary1.c---------------------------
+
+```
+
+=== Affichage
+
+```
+--------------------------summary1.c---------------------------
+
+```
 
 = Tâche vidéo
 
@@ -299,9 +363,17 @@ $ sum_(i=1)^n C_i / P_i <= U_"lub"_"RM" (n) = n(2^(1/2) - 1) $
 
 Avec ` C_i ` le temps d'exécution de la tâche i, ` P_i ` la période de la tâche i et ` U_lub_RM (n) ` la borne supérieure de l'utilisation du processeur pour ` n ` tâches.
 
-_ Quelle observations faîtes-vous pour les différents traitements des données vidéos ? _
+== calculs
 
-Comme indiqué précédemment, la tâche de convolution n'est pas ordonnançable avec les autres tâches. En effet, le temps d'exécution de la convolution est trop élevé pour être ordonnançable.
+
+
+== Rate Monotonic
+
+// Quelle est la charge du CPU retournée par la commande htop ?
+
+// Votre système est-il capable de gérer les différents traitements vidéo de manière ordonnée ?
+  // Si oui, quel est le framerate vidéo maximal auquel votre système continue de fonctionner correctement ?
+  // Si non, dans quelle mesure devez-vous diminuer le framerate vidéo pour obtenir un système fonctionnel ?
 
 
 = Conclusion
@@ -309,7 +381,14 @@ Comme indiqué précédemment, la tâche de convolution n'est pas ordonnançable
 
 
 
+
+////////////////////////////////////////////////////////////////
+
+// pour sauter une page
 // #pagebreak()
+
+// pour crer une colonne :
+// #colbreak() 
 
 // math:
 // $ (x² + 3) / 56 dot ln(2) = 42 "sec"  $
@@ -319,3 +398,17 @@ Comme indiqué précédemment, la tâche de convolution n'est pas ordonnançable
 
 // Pour deux images cote a cote :
 // #align(center, table(columns: 2, stroke: none, [#image("plot/audio_task.svg", width: 18em)], [#image("plot/video_task.svg", width: 18em)]))
+
+// pour les tableaux :
+// #table(
+//   columns: (1fr, 1fr, 1fr, 1fr, 1fr),
+//   inset: 7pt,
+//   align: center + horizon,
+//   table.header(
+//     [], [*Convolution*], [*Greyscale*], [*Video task*], [*Audio task*]
+//   ),
+//   [*Switch*], [9], [8], [1], [0]
+// )
+
+
+////////////////////////////////////////////////////////////////
